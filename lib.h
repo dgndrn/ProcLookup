@@ -11,8 +11,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define LOGF(...) fprintf(logfd,__VA_ARGS__); \                 
+                  printf(__VA_ARGS__) \
 
-typedef struct {
+                  typedef struct {
     unsigned long start;
     unsigned long end;
     char perms[5];
