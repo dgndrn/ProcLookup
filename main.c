@@ -1,39 +1,16 @@
+#include "lib.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/uio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <dirent.h>
-#include <time.h>
-
-#include <limits.h>
-#include <sys/ptrace.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-
-typedef struct {
+struct stack {
     unsigned long start;
     unsigned long end;
-    char perms[5];
-    unsigned long offset;
-    char dev[8];
-    unsigned long inode;
-    char pathname[256];
-} memory_region_t;
+    char protection[4];
+}stack_t;
 
-    struct stack {
-        unsigned long start;
-        unsigned long end;
-        char protection[4];
-    }stack_t;
-
-    struct heap {
-        unsigned long start;
-        unsigned long end;
-        char protection[4];
-    }heap_t;
+struct heap {
+    unsigned long start;
+    unsigned long end;
+    char protection[4];
+}heap_t;
 
 struct map {
     
@@ -41,114 +18,20 @@ struct map {
    struct heap heap;
 
     uint64_t text_section;
-    
     char region_name[2][20];
 
     #define STACK_FLAG 0
     #define HEAP_FLAG 1
     uint16_t flag;
-
-
     struct proclist {
         char procname[600][1024];
         int pid[600];
         int procnum;
-
     } proclist_t
-     
-
 }map_t;
 
-void init();
-void out();
-int read_process_memory(pid_t pid, uint64_t addr, size_t size);
-void parse_procname();
-int pid_by_name(char* procname);
-void parse_stack(memory_region_t region);
-void read_address(pid_t pid, unsigned long address, size_t size_t);
-void parse_maps(int pid);
-bool callme(int pid, unsigned long addr,bool exit);
-void read_file(char *filepath);
-void parse_region(memory_region_t region, uint16_t flag);
-int ptrace_scope_init();
-int ptrace_scope_out();
-void log_init();
-void LOG(char *message);
-void log_out();
-char *date();
 
 FILE* logfd;
-
-
-char const_proc[66][20] = {
-".",
-"..",
-"fb",
-"fs",
-"bus",
-"dma",
-"irq",
-"net",
-"sys",
-"tty",
-"acpi",
-"keys",
-"kmsg",
-"misc",
-"mtrr",
-"scsi",
-"stat",
-"iomem",
-"kcore",
-"locks",
-"swaps",
-"vmnet",
-"asound",
-"crypto",
-"driver",
-"mdstat",
-"mounts",
-"uptime",
-"vmstat",
-"cgroups",
-"cmdline",
-"cpuinfo",
-"devices",
-"ioports",
-"loadavg",
-"meminfo",
-"modules",
-"sysvipc",
-"version",
-"consoles",
-"kallsyms",
-"pressure",
-"slabinfo",
-"softirqs",
-"zoneinfo",
-"buddyinfo",
-"diskstats",
-"key-users",
-"schedstat",
-"bootconfig",
-"interrupts",
-"kpagecount",
-"kpageflags",
-"partitions",
-"timer_list",
-"execdomains",
-"filesystems",
-"kpagecgroup",
-"vmallocinfo",
-"pagetypeinfo",
-"dynamic_debug",
-"latency_stats",
-"sysrq-trigger",
-"version_signature",
-"self",
-"thread-self"};
-
-
 
 int main(int argc, char** argv){
     
@@ -176,9 +59,7 @@ int main(int argc, char** argv){
 
    out(); 
    return 0;
-
 }
-
 
 bool callme(int pid,unsigned long addr,bool exit){
  
@@ -256,7 +137,6 @@ void parse_maps(int pid) {
     }
 
     fclose(file);
-
 }
 
 
@@ -283,7 +163,7 @@ int read_process_memory(pid_t pid, uint64_t addr, size_t size){
 
     if(nread < 0)
     {
-        LOG("process_vm_readv");
+        printf("process_vm_readv failed\n");
         return 1;
     }
 
@@ -298,7 +178,6 @@ int read_process_memory(pid_t pid, uint64_t addr, size_t size){
     printf("\n");
 
     return 0;
-
 }
 
 
@@ -347,8 +226,6 @@ void parse_region(memory_region_t region, uint16_t flag){
         exit(-7);
         break;
     }
-
-
 }
 
 
@@ -386,7 +263,7 @@ int ptrace_scope_init(){
 
     FILE *fd = fopen("/proc/sys/kernel/yama/ptrace_scope","rb");
     if(fd < 0){
-        printf("failed open file\n");
+        LOG("failed open file:/proc/sys/kernel/yama/ptrace_scope");
         exit(-1);
     }
     
@@ -411,7 +288,7 @@ int ptrace_scope_init(){
         
         fclose(fd);
         system("echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope"); 
-        printf("ptrace value setted 0\n");
+        printf("ptrace value set to 0\n");
         return 0;
     }
 
@@ -422,7 +299,7 @@ int ptrace_scope_init(){
 
 int ptrace_scope_out(){
     system("echo 1 | sudo tee /proc/sys/kernel/yama/ptrace_scope");
-    printf("ptrace value setted 1\n");
+    printf("ptrace value set to 1");
 
 }
 
@@ -441,14 +318,13 @@ int pid_by_name(char* procname){
 
 void parse_procname(){
 
-
     char proclist[1024][1024];
     struct dirent *de;  
     DIR *dr = opendir("/proc");
 
     if (dr == NULL)  
     {
-        printf("Could not open current directory" );
+        printf("Could not open current directory");
         return 0;
     }
 
@@ -490,7 +366,6 @@ void parse_procname(){
 
     }
  //   printf("Size of list : %d\n",counter2+1);
-
 }
 
 
@@ -499,14 +374,12 @@ void init(){
     ptrace_scope_init();
     log_init();
     parse_procname();
-
 }
 
 void out(){
 
     ptrace_scope_out();
-   log_out();
-
+    log_out();
 }
 
 
@@ -522,5 +395,4 @@ char *date(){
     strftime(buffer, sizeof(buffer), "%d.%m.%Y - %H:%M:%S", timeinfo);
     _ctime = &buffer;
     return _ctime;
-
 }
