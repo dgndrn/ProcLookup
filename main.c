@@ -4,13 +4,19 @@ struct stack {
     unsigned long start;
     unsigned long end;
     char protection[4];
-}stack_t;
+}stack;
 
 struct heap {
     unsigned long start;
     unsigned long end;
     char protection[4];
-}heap_t;
+}heap;
+
+struct proclist {
+    char procname[600][1024];
+    int pid[600];
+    int procnum;
+} proclist;
 
 struct map {
     
@@ -23,27 +29,24 @@ struct map {
     #define STACK_FLAG 0
     #define HEAP_FLAG 1
     uint16_t flag;
-    struct proclist {
-        char procname[600][1024];
-        int pid[600];
-        int procnum;
-    } proclist_t
-}map_t;
+    
+    struct proclist proclist;
+}map;
 
 
 FILE* logfd;
 
 int main(int argc, char** argv){
     
-    init();
-
     if(argc != 2){
-        LOG("Usage ./lookup [Procname]\n");
+        printf("Usage \"sudo ./lookup [Procname]\"\n");
         return -1;
     }
 
-    memcpy(map_t.region_name[0],"[stack]",8);
-    memcpy(map_t.region_name[1],"[heap]",7);
+    init();
+
+    memcpy(map.region_name[0],"[stack]",8);
+    memcpy(map.region_name[1],"[heap]",7);
    
     u_int64_t addr = 0;   
     pid_t pid = pid_by_name(argv[1]);
@@ -69,6 +72,8 @@ bool callme(int pid,unsigned long addr,bool exit){
     
     scanf("%lx",&addr);
     
+    LOGF("read address: %lx\n",addr);    
+
     if(addr == 0){
         exit = true;
     }
@@ -77,7 +82,6 @@ bool callme(int pid,unsigned long addr,bool exit){
 
     return exit;
 }
-
 
 void read_file(char *filepath){
     
@@ -90,8 +94,6 @@ void read_file(char *filepath){
     }
     fclose(fd);
 }
-
-
 
 void parse_maps(int pid) {
     
@@ -128,9 +130,9 @@ void parse_maps(int pid) {
                    region.start, region.end, region.perms, trimmed_path);
             
             for(int i=0;i< 2;i++) 
-            if( strcmp (map_t.region_name[i],region.pathname) == 0) {       
-               map_t.flag |= i; 
-               parse_region(region,map_t.flag);
+            if( strcmp (map.region_name[i],region.pathname) == 0) {       
+               map.flag |= i; 
+               parse_region(region,map.flag);
             }
 
         }
@@ -138,8 +140,6 @@ void parse_maps(int pid) {
 
     fclose(file);
 }
-
-
 
 int read_process_memory(pid_t pid, uint64_t addr, size_t size){
 
@@ -163,60 +163,60 @@ int read_process_memory(pid_t pid, uint64_t addr, size_t size){
 
     if(nread < 0)
     {
-        LOG("process_vm_readv failed\n");
+        LOGF("read address failed for %lx\n",addr);
         return 1;
     }
 
-    LOGF("Read %zd bytes\n", nread);
+    LOGF("Read %zd bytes\n", size);
 
-    for(int i=0;i<size;i++)
-        printf("%02X ", buffer[i]);
-    
-    for(int i=0;i<size;i++)
-        printf("%C", buffer[i]);
+    for(int i=0;i<size;i++){
 
-    printf("\n");
+        LOGF("%02X ", buffer[i]);
+    }
 
+    for(int i=0;i<size;i++){
+
+        LOGF("%C", buffer[i]);
+    }
+
+    LOGF("\n");
     return 0;
 }
 
-
 void parse_stack(memory_region_t region){
     
-    map_t.stack = stack_t;
-    stack_t.start = region.start;
-    stack_t.end = region.end;
-    memcpy(stack_t.protection,region.perms,4); 
+    map.stack = stack;
+    stack.start = region.start;
+    stack.end = region.end;
+    memcpy(stack.protection,region.perms,4); 
 
-    LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack_t.start,stack_t.end,stack_t.protection);       
+    LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);       
 }
-
 
 void read_address(pid_t pid, unsigned long address, size_t size){
 
     read_process_memory(pid, address, size);
 }
 
-
 void parse_region(memory_region_t region, uint16_t flag){
 
     switch (flag)
     {
     case STACK_FLAG:
-        map_t.stack = stack_t;
-        stack_t.start = region.start;
-        stack_t.end = region.end;
-        memcpy(stack_t.protection,region.perms,4); 
+        map.stack = stack;
+        stack.start = region.start;
+        stack.end = region.end;
+        memcpy(stack.protection,region.perms,4); 
 
-      LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack_t.start,stack_t.end,stack_t.protection);   
+      LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);   
         break;
     case HEAP_FLAG:
-        map_t.heap = heap_t;
-        heap_t.start = region.start;
-        heap_t.end = region.end;
-        memcpy(heap_t.protection,region.perms,4);      
+        map.heap = heap;
+        heap.start = region.start;
+        heap.end = region.end;
+        memcpy(heap.protection,region.perms,4);      
 
-      LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap_t.start,heap_t.end,heap_t.protection);   
+      LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap.start,heap.end,heap.protection);   
         break;
 
     default:
@@ -228,7 +228,6 @@ void parse_region(memory_region_t region, uint16_t flag){
     }
 }
 
-
 void log_init(){
 
     logfd = fopen("./ProcLookup.log","a");
@@ -238,6 +237,7 @@ void log_init(){
     }
         setenv("TZ", "Europe/Istanbul", 1);
         tzset();
+        LOG("INIT\n");
         return;
 }
 
@@ -250,12 +250,13 @@ void LOG(char *message){
     strcat(tt2,_message);
     strcat(tt2,message);
     strcat(tt2,"\n");
-    printf("%s\n",tt2);
+    printf("%s",message);
     fprintf(logfd,"%s",tt2);
     return;
 }
 
 void log_out(){
+    LOG("OUT\n");
     fclose(logfd);
     return;
 }
@@ -276,7 +277,7 @@ int ptrace_scope_init(){
     val = atoi(buffer);
     
     if(val == 1){
-        LOGF("ptrace value: %d\n",val);
+        LOGF("current ptrace value: %d\n",val);
         
         fclose(fd);
         
@@ -297,28 +298,28 @@ int ptrace_scope_init(){
     return 0;
 }
 
-
 int ptrace_scope_out(){
     system("echo 1 | sudo tee /proc/sys/kernel/yama/ptrace_scope");
-    LOG("ptrace value set to 1");
+    LOG("ptrace value set to 1\n");
 
 }
 
 int pid_by_name(char* procname){
 
-    for(int i = 0; i<map_t.proclist_t.procnum; i++){
+    for(int i = 0; i<map.proclist.procnum; i++){
 
-        if(strcmp(procname,map_t.proclist_t.procname[i]) == 0){
-            LOGF("found: %s pid: %d \n",map_t.proclist_t.procname[i],map_t.proclist_t.pid[i]);
-            return map_t.proclist_t.pid[i];
+        if(strcmp(procname, map.proclist.procname[i]) == 0){
+            LOGF("found: %s pid: %d \n",map.proclist.procname[i],map.proclist.pid[i]);
+            return map.proclist.pid[i];
         }
     }
-    LOG("process couldn't find");
+    LOGF("process couldn't find: %s",procname);
     exit(-1);
 }
 
 void parse_procname(){
 
+    map.proclist = proclist;
     char proclist[1024][1024];
     struct dirent *de;  
     DIR *dr = opendir("/proc");
@@ -349,7 +350,7 @@ void parse_procname(){
     int counter2 = 0;
     for(int i = 0; i < counter; i++){
         if(strcmp(proclist[i],"NULL") != 0){
-            map_t.proclist_t.pid[counter2] = atoi(proclist[i]);
+            map.proclist.pid[counter2] = atoi(proclist[i]);
             counter2++;
         }
     }
@@ -357,18 +358,17 @@ void parse_procname(){
     for(int i=0; i< counter2; i++){
         char filepath[100];
         char buffer[100];
-        snprintf(filepath, sizeof(filepath), "/proc/%d/comm", map_t.proclist_t.pid[i]);
+        snprintf(filepath, sizeof(filepath), "/proc/%d/comm", map.proclist.pid[i]);
         FILE *files = fopen(filepath,"rb");
         fgets(buffer, sizeof(buffer), files);
         buffer[strlen(buffer)-1] = '\0';
-        memcpy(map_t.proclist_t.procname[i],buffer,sizeof(buffer)); 
-        LOGF("pid: %d comm: %s\n",map_t.proclist_t.pid[i], map_t.proclist_t.procname[i]);
-        map_t.proclist_t.procnum = counter2;
+        memcpy(map.proclist.procname[i],buffer,sizeof(buffer)); 
+        LOGF("pid: %d comm: %s\n",map.proclist.pid[i], map.proclist.procname[i]);
+        map.proclist.procnum = counter2;
 
     }
- //   printf("Size of list : %d\n",counter2+1);
+    LOGF("Size of list : %d\n",counter2+1);
 }
-
 
 void init(){
 
@@ -382,7 +382,6 @@ void out(){
     ptrace_scope_out();
     log_out();
 }
-
 
 char *date(){
 
