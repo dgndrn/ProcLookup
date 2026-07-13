@@ -14,7 +14,18 @@
 #define LOGF(...) fprintf(logfd,__VA_ARGS__); \                 
                   printf(__VA_ARGS__) \
 
-                  typedef struct {
+
+#define READ_1 1
+#define READ_2 2
+#define READ_4 4
+#define READ_8 8
+#define READ_16 16   
+#define READ_32 32
+#define READ_64 64
+#define READ_512 512
+#define READ_4096 4096 
+
+typedef struct {
     unsigned long start;
     unsigned long end;
     char perms[5];

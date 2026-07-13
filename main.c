@@ -66,13 +66,13 @@ int main(int argc, char** argv){
 
 bool callme(int pid,unsigned long addr,bool exit){
  
-    size_t size = 32;
+    size_t size = READ_32;
     
     LOG("read address:");    
     
     scanf("%lx",&addr);
     
-    LOGF("read address: %lx\n",addr);    
+    LOGF("read address: 0x%lx\n",addr);    
 
     if(addr == 0){
         exit = true;
@@ -86,11 +86,14 @@ bool callme(int pid,unsigned long addr,bool exit){
 void read_file(char *filepath){
     
     FILE* fd = fopen(filepath,"rb");
+    
     char line[512];
+
     while (fgets(line, sizeof(line), fd)) {
 
-        for(int i = 0;i < 512;i++)
-        printf("X",line[i]);
+        for(int i = 0;i < 512;i++) {
+            LOGF("X",line[i]);
+        }
     }
     fclose(fd);
 }
@@ -98,6 +101,7 @@ void read_file(char *filepath){
 void parse_maps(int pid) {
     
     char path[64];
+
     if (pid == 0) {
         snprintf(path, sizeof(path), "/proc/self/maps");
     } else {
@@ -105,8 +109,11 @@ void parse_maps(int pid) {
     }
 
     FILE *file = fopen(path, "r");
+    
     if (!file) {
+        
         LOG("Failed to open maps file");
+        
         return;
     }
 
@@ -143,7 +150,7 @@ void parse_maps(int pid) {
 
 int read_process_memory(pid_t pid, uint64_t addr, size_t size){
 
-    unsigned char buffer[4096];
+    unsigned char buffer[READ_4096];
 
     struct iovec local = {
         .iov_base = buffer,
@@ -180,6 +187,7 @@ int read_process_memory(pid_t pid, uint64_t addr, size_t size){
     }
 
     LOGF("\n");
+    
     return 0;
 }
 
@@ -200,26 +208,28 @@ void read_address(pid_t pid, unsigned long address, size_t size){
 
 void parse_region(memory_region_t region, uint16_t flag){
 
-    switch (flag)
-    {
+    switch (flag) {
+
     case STACK_FLAG:
+        
         map.stack = stack;
         stack.start = region.start;
         stack.end = region.end;
-        memcpy(stack.protection,region.perms,4); 
-
-      LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);   
+        memcpy(stack.protection,region.perms,4);    
+        LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);   
         break;
+
     case HEAP_FLAG:
+       
         map.heap = heap;
         heap.start = region.start;
         heap.end = region.end;
         memcpy(heap.protection,region.perms,4);      
-
-      LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap.start,heap.end,heap.protection);   
+        LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap.start,heap.end,heap.protection);   
         break;
 
     default:
+        
         char errmsg[100];
         snprintf(errmsg,sizeof(errmsg),"Error!: Unknown flag detected: %d",flag);
         LOG(errmsg);
@@ -231,13 +241,16 @@ void parse_region(memory_region_t region, uint16_t flag){
 void log_init(){
 
     logfd = fopen("./ProcLookup.log","a");
+    
     if(logfd < 0){
+        
         printf("ProcLookup.log couldn't open");
         exit(-1);
     }
         setenv("TZ", "Europe/Istanbul", 1);
         tzset();
         LOG("INIT\n");
+
         return;
 }
 
@@ -256,6 +269,7 @@ void LOG(char *message){
 }
 
 void log_out(){
+    
     LOG("OUT\n");
     fclose(logfd);
     return;
@@ -291,6 +305,7 @@ int ptrace_scope_init(){
         fclose(fd);
         system("echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope"); 
         LOG("ptrace value set to 0\n");
+        
         return 0;
     }
 
@@ -301,7 +316,7 @@ int ptrace_scope_init(){
 int ptrace_scope_out(){
     system("echo 1 | sudo tee /proc/sys/kernel/yama/ptrace_scope");
     LOG("ptrace value set to 1\n");
-
+    return 0;
 }
 
 int pid_by_name(char* procname){
@@ -314,6 +329,7 @@ int pid_by_name(char* procname){
         }
     }
     LOGF("process couldn't find: %s",procname);
+    
     exit(-1);
 }
 
@@ -368,6 +384,8 @@ void parse_procname(){
 
     }
     LOGF("Size of list : %d\n",counter2+1);
+    
+    return;
 }
 
 void init(){
@@ -375,12 +393,14 @@ void init(){
     log_init();
     ptrace_scope_init();
     parse_procname();
+    return;
 }
 
 void out(){
 
     ptrace_scope_out();
     log_out();
+    return;
 }
 
 char *date(){
