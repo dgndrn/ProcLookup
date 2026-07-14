@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/uio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <dirent.h>
@@ -10,6 +9,11 @@
 #include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <errno.h>
+
+#define _GNU_SOURCE
+#include <sys/uio.h>
+
 
 #define LOGF(...) fprintf(logfd,__VA_ARGS__); \                 
                   printf(__VA_ARGS__) \
@@ -25,6 +29,23 @@
 #define READ_512 512
 #define READ_4096 4096 
 
+#define WRITE_1 1
+#define WRITE_2 2
+#define WRITE_4 4
+#define WRITE_8 8
+#define WRITE_16 16   
+#define WRITE_32 32
+#define WRITE_64 64
+#define WRITE_512 512
+#define WRITE_4096 4096 
+
+
+
+
+#define READ 1
+#define WRITE 2
+#define EXIT 3
+
 typedef struct {
     unsigned long start;
     unsigned long end;
@@ -38,6 +59,7 @@ typedef struct {
 void init();
 void out();
 int read_process_memory(pid_t pid, uint64_t addr, size_t size);
+int write_process_memory(pid_t pid, uint64_t addr, size_t size);
 void parse_procname();
 int pid_by_name(char* procname);
 void parse_stack(memory_region_t region);
@@ -52,6 +74,21 @@ void log_init();
 void LOG(char *message);
 void log_out();
 char *date();
+
+
+ssize_t process_vm_readv(pid_t pid,
+				const struct iovec *local_iov,
+				unsigned long liovcnt,
+				const struct iovec *remote_iov,
+				unsigned long riovcnt,
+				unsigned long flags);
+
+ssize_t process_vm_writev(pid_t pid,
+                        const struct iovec *local_iov,
+                        unsigned long liovcnt,
+                        const struct iovec *remote_iov,
+                        unsigned long riovcnt,
+                        unsigned long flags);
 
 
 char const_proc[66][20] = {

@@ -64,23 +64,57 @@ int main(int argc, char** argv){
    return 0;
 }
 
-bool callme(int pid,unsigned long addr,bool exit){
+bool callme(int pid,unsigned long addr,bool _exit){
  
     size_t size = READ_32;
+    int input,err = 0;
     
-    LOG("read address:");    
-    
-    scanf("%lx",&addr);
-    
-    LOGF("read address: 0x%lx\n",addr);    
-
-    if(addr == 0){
-        exit = true;
+    printf("1- Read\n2- Write\n3- Exit\n> ");
+    err = scanf("%d",&input);
+    if(err == 0){   
+        LOGF("Wrong Input\n");
+        exit(-1);
     }
-    
-    read_address(pid,addr,size);
 
-    return exit;
+    switch (input){
+
+    case READ:
+        
+        LOG("read address:");    
+
+        scanf("%lx",&addr);
+        
+        LOGF("read address: 0x%lx\n",addr);    
+
+        if(addr == 0){
+            _exit = true;
+        }
+        
+        read_address(pid,addr,size);
+
+        return _exit;
+    
+    case WRITE:
+
+        LOG("write address:");    
+        
+        scanf("%lx",&addr);
+        
+        err = write_process_memory(pid, addr, size); 
+        if(err){
+            out();
+            exit(-1);
+        }
+    break;
+
+    case EXIT:
+        exit(0);
+
+    default:
+        LOGF("Wrong Input\n");
+        break;
+    }
+
 }
 
 void read_file(char *filepath){
@@ -137,9 +171,9 @@ void parse_maps(int pid) {
                    region.start, region.end, region.perms, trimmed_path);
             
             for(int i=0;i< 2;i++) 
-            if( strcmp (map.region_name[i],region.pathname) == 0) {       
-               map.flag |= i; 
-               parse_region(region,map.flag);
+            if( strcmp(map.region_name[i], region.pathname) == 0) {       
+               map.flag = i; 
+               parse_region(region, map.flag);
             }
 
         }
@@ -191,6 +225,61 @@ int read_process_memory(pid_t pid, uint64_t addr, size_t size){
     return 0;
 }
 
+int write_process_memory(pid_t pid, uint64_t addr, size_t size){
+
+    
+    unsigned char buffer[WRITE_64];
+    LOGF("Enter Buffer:");
+    scanf("%s",&buffer);
+
+    struct iovec local = {
+        .iov_base = buffer,
+        .iov_len = sizeof(buffer)
+    };
+
+    struct iovec remote = {
+        .iov_base = (void*)addr,
+        .iov_len = sizeof(buffer)
+    };
+
+    ssize_t nwrited = process_vm_writev(
+        pid,
+        &local, 1,
+        &remote, 1,
+        0);
+
+    if(nwrited == -1)
+    {
+        switch (errno)
+        {
+        case EPERM:
+            LOGF("Operation not permitted! Possibly read only zone!");
+            break;
+
+        case ESRCH:
+            LOGF("No such process! Check pid");
+            break;
+
+        case EFAULT:
+            LOGF("Bad address");
+            break;
+
+        default:
+            break;
+        }
+        LOGF("remote process write failed for %lx\n",addr);
+        return 1;
+    }
+
+    LOGF("%zd bytes written\n", size);
+
+    read_process_memory(pid, addr, size);
+    
+    return 0;
+
+
+}
+
 void parse_stack(memory_region_t region){
     
     map.stack = stack;
@@ -216,7 +305,7 @@ void parse_region(memory_region_t region, uint16_t flag){
         stack.start = region.start;
         stack.end = region.end;
         memcpy(stack.protection,region.perms,4);    
-        LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);   
+     //   LOGF("Stack\n0x%012lx-0x%012lx %s\n",stack.start,stack.end,stack.protection);   
         break;
 
     case HEAP_FLAG:
@@ -225,7 +314,7 @@ void parse_region(memory_region_t region, uint16_t flag){
         heap.start = region.start;
         heap.end = region.end;
         memcpy(heap.protection,region.perms,4);      
-        LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap.start,heap.end,heap.protection);   
+    //    LOGF("Heap\n0x%012lx-0x%012lx %s\n",heap.start,heap.end,heap.protection);   
         break;
 
     default:
@@ -280,6 +369,7 @@ int ptrace_scope_init(){
     FILE *fd = fopen("/proc/sys/kernel/yama/ptrace_scope","rb");
     if(fd < 0){
         LOG("failed open file:/proc/sys/kernel/yama/ptrace_scope");
+        log_out();
         exit(-1);
     }
     
@@ -299,6 +389,7 @@ int ptrace_scope_init(){
         
         if(fd <= 0){
             LOG("Failed open file. Use sudo!\n");
+            log_out();
             exit(-1);
         }
         
@@ -343,7 +434,9 @@ void parse_procname(){
     if (dr == NULL)  
     {
         LOG("Could not open /proc directory");
-        return 0;
+        ptrace_scope_out();
+        log_out();
+        return;
     }
 
     int counter = 0;
@@ -413,6 +506,8 @@ char *date(){
 
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%d.%m.%Y - %H:%M:%S", timeinfo);
-    _ctime = &buffer;
+    _ctime = (char *)buffer;
     return _ctime;
 }
+
+
