@@ -65,7 +65,7 @@ int pid_by_name(char* procname);
 void parse_stack(memory_region_t region);
 void read_address(pid_t pid, unsigned long address, size_t size_t);
 void parse_maps(int pid);
-bool callme(int pid, unsigned long addr,bool exit);
+bool proc_lookup(int pid, unsigned long addr,bool exit);
 void read_file(char *filepath);
 void parse_region(memory_region_t region, uint16_t flag);
 int ptrace_scope_init();

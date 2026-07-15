@@ -57,14 +57,14 @@ int main(int argc, char** argv){
     
     while(!exit){
 
-       exit = callme(pid,addr,exit);
+       exit = proc_lookup(pid, addr, exit);
     }
 
    out(); 
    return 0;
 }
 
-bool callme(int pid,unsigned long addr,bool _exit){
+bool proc_lookup(int pid,unsigned long addr,bool _exit){
  
     size_t size = READ_32;
     int input,err = 0;
@@ -276,8 +276,6 @@ int write_process_memory(pid_t pid, uint64_t addr, size_t size){
     read_process_memory(pid, addr, size);
     
     return 0;
-
-
 }
 
 void parse_stack(memory_region_t region){
