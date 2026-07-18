@@ -73,6 +73,7 @@ bool proc_lookup(int pid,unsigned long addr,bool _exit){
     err = scanf("%d",&input);
     if(err == 0){   
         LOGF("Wrong Input\n");
+        out();
         exit(-1);
     }
 
@@ -108,6 +109,7 @@ bool proc_lookup(int pid,unsigned long addr,bool _exit){
     break;
 
     case EXIT:
+        out();
         exit(0);
 
     default:
@@ -147,8 +149,8 @@ void parse_maps(int pid) {
     if (!file) {
         
         LOG("Failed to open maps file");
-        
-        return;
+        out();
+        exit(-1);
     }
 
     char line[512];
@@ -320,7 +322,7 @@ void parse_region(memory_region_t region, uint16_t flag){
         char errmsg[100];
         snprintf(errmsg,sizeof(errmsg),"Error!: Unknown flag detected: %d",flag);
         LOG(errmsg);
-        exit(-7);
+        exit(-1);
         break;
     }
 }
@@ -418,7 +420,7 @@ int pid_by_name(char* procname){
         }
     }
     LOGF("process couldn't find: %s",procname);
-    
+    out();
     exit(-1);
 }
 
@@ -434,6 +436,7 @@ void parse_procname(){
         LOG("Could not open /proc directory");
         ptrace_scope_out();
         log_out();
+        exit(-1);
         return;
     }
 
